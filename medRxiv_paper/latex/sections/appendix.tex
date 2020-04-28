@@ -1,0 +1,142 @@
+\setcounter{page}{1}
+
+\begin{appendices}
+\setcounter{figure}{0}    
+\section{Scope and geography}
+\label{sec:geography}
+
+This model focuses on the South of England including the towns and cities of Andover, Bognore Regis, Basingstoke, Portsmouth, Salisbury, Southampton, and Winchester. The region under study includes 582 dialysis patients, from 262 postcode sectors, attending nine dialysis units. In this paper we do not include home dialysis patients 44 patients on the Isle of Wight.
+
+Table \ref{tab:dialysis_units} provides information on regional dialysis units.
+
+Table \ref{tab:dialysis_unit_sessions} shows which sessions are currently used at each unit (the model maintains this pattern of open/closes sessions unless specified). Each session may be designated for with COVID-19 negative (or COVID-recovered) or COVID-positive patients. COVID-positive and COVID-non-positive patients never share a session. Units are designated as allowing sessions to be made COVID-positive. Where a unit may want to retain some capacity only for non-positive patients, the unit may be split into two (or more) sub-units which may each be designated as allowing switching to COVID-positive status.
+
+\begin{minipage}{\textwidth}
+\begin{longtable}[]{@{}llllllllllllll@{}}
+\caption{Dialysis units. Units may be split into sub-units if some, but not all, of the capacity, may be opened for use for COVID-positive patients. The \emph{COVID order} shows the preferred order of opening up capacity for COVID-positive patients (only when one unit is at maximum capacity is the next unit opened).}\\
+\toprule
+\endhead
+Name & unit & subunit & Location & Chairs & inpatient & Allow COVID & COVID order\tabularnewline
+\midrule
+Basingstoke & BST & BST-1 & RG21 6YH & 12 & - & - & - \tabularnewline
+Basingstoke & BST & BST-2 & RG21 6YH & 13 & - & Y & 2 \tabularnewline
+Bognor Regis & BGN & BGN & PO22 9PP & 13 & - & - & - \tabularnewline
+Chandler's Ford & CHF & CHF & SO53 4DG & 18 & - & - & - \tabularnewline
+Havant & HAV & HAV & PO9 1TR & 28 & - & - & - \tabularnewline
+Milford-on-Sea & MIL & MIL & SO41 0PG & 7 & - & - & - \tabularnewline
+Queen Alexandra & HU & HU-1 & PO6 3LY & 12 & Y & - & -\tabularnewline
+Queen Alexandra & HU & HU-2 & PO6 3LY & 12 & - & Y & 1\tabularnewline
+Salisbury & SAL & SAL & SP2 8BJ & 11 & - & - & -\tabularnewline
+Totton & TOT & TOT & SO40 3ZN & 9 & - & - & -\tabularnewline
+\bottomrule
+\label{tab:dialysis_units}
+\end{longtable}
+\end{minipage}
+
+\begin{minipage}{\textwidth}
+\begin{longtable}[]{@{}llllllllllllll@{}}
+\caption{Dialysis unit open sessions}\\
+\toprule
+\endhead
+Name & subunit & Mon 1 & Mon 2 & Mon 3 & Tues 1 & Tues 2 & Tues 3\tabularnewline
+\midrule
+Basingstoke & BST-1 & Y & Y & - & Y & Y & -\tabularnewline
+Basingstoke & BST-2 & Y & Y & - & Y & Y & -\tabularnewline
+Bognor Regis & BGN & Y & Y & Y & Y & Y & -\tabularnewline
+Chandler's Ford & CHF & Y & Y & Y & Y & Y & -\tabularnewline
+Havant & HAV & Y & Y & Y & Y & Y & Y\tabularnewline
+Milford-on-Sea & MIL & Y & Y & - & Y & - & -\tabularnewline
+Queen Alexandra & HU-1 & Y & Y & Y & Y & Y & Y\tabularnewline
+Queen Alexandra & HU-2 & Y & Y & Y & Y & Y & Y\tabularnewline
+Salisbury & SAL & Y & Y & - & Y & Y & -\tabularnewline
+Totton & TOT & Y & Y & - & Y & Y & -\tabularnewline
+\bottomrule
+\label{tab:dialysis_unit_sessions}
+\end{longtable}
+\end{minipage}
+
+\section{Vehicle Routing Heuristics}
+\label{sec:vrp}
+
+\subsection{Clarke-Wright Savings}
+
+Assume there are two patients $A$ and $B$, and a transport vehicle is with 2 seats is based at a depot $D$. 
+
+\begin{itemize}
+    \item The the time to travel from $D$ to $A$ is 30 minutes,
+    \item The time to travel from $D$ to $B$ is 40 minutes
+    \item The travel time from $A$ to $B$ is 10 minutes.
+\end{itemize}
+
+If single trips are used the the total time needed to transport all patients to hospital is $2(30) + 2(40) = 140$ minutes. 
+
+If the capacity of an ambulances is increased to two seats then \textbf{the saving in time relative to single trips} is $ 30 + 40 - 10 = 60$ minutes. I.e $D \rightarrow A \rightarrow B \rightarrow D$ is one trip from $D$ to $A$ (30 minutes) + one trips from $B$ to $D$ (40 minutes) minus the time to travel from $A$ to $B$ (10 minutes).
+
+The algorithm calculates these savings for all combinations of patient locations.  It constructs routes by selecting the locations with the highest saving first.  In the sequential version of the algorithm additional adjacent links are added again prioritised  by savings.
+
+\subsection{Iterated Local Search}
+
+Iterated Local Search (ILS) is a meta-heuristic designed to overcome the problem of hill-climbing algorithms becoming stuck in local optima (good solutions, that are not the global optimum or best). ILS runs hill-climbing algorithms multiple times and stochastically climbs (or descends) the hill of local-optima.  Algorithm \ref{alg:ils} describes our implementation of the standard ILS procedure. Our initial solution was fed through from the Clarke-Wright Savings procedure. For each problem instance we iterated 20 times over a first improvement decent local search procedure that employed 2-Opt swaps of patient allocations to routes. To balance exploitation and exploration of the space of local optima, we use an Epsilon-Greedy ($\epsilon$ = 0.2) implementation of the \textit{homebase} function (see algorithm \ref{alg:homebase}). Our perturbation function employed a 4-Opt (the Double-Bridge) swap.
+
+    \begin{algorithm}[H]
+    \DontPrintSemicolon
+      
+      Given $P$ patient locations and $n$ iterations to run.
+      
+          $S \leftarrow SequentialClarkeWrightSavings(P)$ 
+          
+          $H \leftarrow S$
+          
+          $Best \leftarrow S$
+          
+          \For{$i <= n$}
+            {
+                $S \leftarrow LocalSearch(Copy(S))$
+                
+                \If{$Quality(S) > Quality(Best)$}
+                {
+                    $Best \leftarrow S$
+                }    
+                
+                    
+                $H \leftarrow NewHomeBase(H, S)$
+                
+                $S \leftarrow Perturbation(H)$
+            }
+          
+            \Return{$Best$}
+     
+        
+    \caption{\label{alg:ils} Iterated Local Search}
+    \end{algorithm}
+
+
+    \begin{algorithm}[H]
+    \DontPrintSemicolon
+      
+      Given $\epsilon, H$ and $S$ 
+      
+      $u \leftarrow Uniform(0, 1)$
+      
+      \If{$u > \epsilon$}
+      {
+         \If{$Quality(S) > Quality(H)$}
+         {
+            \Return S
+         }
+         \Else{
+            \Return H
+         }
+      }  
+      \Else{
+        \Return S
+      }
+      
+     
+    \caption{\label{alg:homebase} Epsilon-Greedy $NewHomeBase$}
+    \end{algorithm}
+
+
+
+
+\end{appendices}

@@ -1,0 +1,284 @@
+
+
+
+\begin{multicols}{2}
+
+\section{Introduction}
+Severe Acute Respiratory Syndrome-Corona Virus-2 (SARS-CoV-2) COVID-19 (henceforth known as COVID) is causing widespread disruption to normal healthcare services, as the number COVID-positive cases increases. In the UK a worst case scenario is that 80\% of the population are infected over a three month period, if controls are not put in place \cite{ferguson_impact_2020}. Although social distancing measures are in place both in the UK and internationally, patients with Chronic Kidney Disease  who must visit dialysis units are limited in their ability to be fully isolated. It is possible therefore that spread in the dialysis population will be faster than in the general population. 
+
+Rapid guidelines for dialysis service delivery have been published\cite{nice_covid_mar_2020, Basile2020, KligerCJN.03340320}. These include separation of COVID-positive and COVID-negative patients; dialysis units working with transport providers to minimise the risk of cross-infection; and continuing to treat patients as close to home as possible. \cite{nice_covid_mar_2020}.
+
+Planning service delivery that separates COVID-positive patients is complicated, due to the uncertainty of the spread of SARS-CoV-2, the variability seen in symptom onset, length of infectivity, and regional delivery of dialysis.  
+
+We therefore sought to support decision making in the period prior to peak infection by developing mathematical models of dialysis service delivery and patient transport. We aimed to provide reusable tools to provide rapid information under various scenarios including a worst case three month spread.
+
+\section{Methods}
+We developed a discrete-event simulation (DES) model of service delivery in the dialysis network. DES is an appropriate method to capture the stochastic dynamics of a capacity constrained system and model patients individually \cite{currie2020}. DES has been applied extensively in health service delivery \cite{Pitt38, brailsford2009, Gunal2010, Mohiuddine015007} and previously to model dialysis demand \cite{roderick2004} as well as networks of care facilities \cite{allen2015}.  We also developed a Monte-Carlo vehicle routing model to model patient transport. The algorithm used, a combination of the Clarke-Wright Savings \cite{clarke_wright_1964} method and Iterated Local Search \cite{ils2003}, finds good solutions grouping and ordering patient pickup.
+
+%think we need to say something about the study setting so the paper and results makes sense.
+%query - what is the exact number of patients?
+\subsection{Study Setting}
+We apply the service delivery modelling tools \cite{allen_michael_2020_3760626} in the South of England in the region of Wessex: a mixed urban/rural setting where the renal dialysis service cares for 644 patients. The service operates a network of nine centres.  The largest of which is located at the Queen Alexandra (QA) Hospital, Portsmouth. To access dialysis services 75\% of patients make use of patient transport services.  
+During the epidemic, COVID-positive patients will be treated separately from negative and recovered. The Queen Alexandra will be used as the primary site for positive outpatients and inpatients with spillover to a second site (Basingstoke) when capacity is insufficient. Patient transport services will provide COVID only ambulances with a policy of single patient transport. 
+
+In the analysis we excluded home patients (n = 80) and due to its separation from the mainland the Isle of Wight (n = 44). 
+
+The geography of units and patients is described in more detail in appendix \ref{sec:geography}.
+
+\subsection{Outcome measures}
+We estimated the the change in outpatient and inpatient workload during the epidemic in terms of COVID-positive negative and recovered, at each dialysis unit in the network. Estimates were produced over periods three to six months. We also estimated the number of patients who were required to travel to a different unit from normal and the change in travel time.
+
+We estimated the vehicle total travel implications for patient transport services given a range of COVID-positive scenarios across the regions geography.
+
+%Mike please can you check you are happy with this section.
+\subsection{Data Sources}
+To ensure confidentiality, patient geographic locations was provided at the UK postcode sector level (alternatives might be output areas or northings and eastings).  Travel times between these sectors were estimated using Routino (\url{routino.org}) with data from OpenStreetMap (\url{openstreetmap.org}). 
+
+The worst case time of spread of COVID-positive was taken from Fergeson et al. \cite{ferguson_impact_2020}. Mortality rate, time a patient was COVID-positive before admission and inpatient length of stay were local parameters.
+
+\subsection{Analysis environment}
+All models were written in Python 3.8. We used SimPy 3 \cite{simpy} to implement the DES model. The transport model was implemented using pandas \cite{mckinney2011pandas} and NumPy \cite{numpy}.  All charts were produced with MatPlotLib \cite{Hunter:2007}. We provide all code and data used in the study and follow the STRESS reporting guidelines for DES \cite{Monks2019}. 
+%need to add hardware used for the analysis...
+The dialysis model results were run on an Intel i9-7980XE CPU with 64GB RAM running Ubuntu 19.10 Linux. The transport modelling results were run on an Intel i9-9900K CPU with 64GB RAM running the Pop!\_OS 19.10 Linux.
+
+\subsection{Verification and validation}
+We performed model testing (verification) as models were developed in line with simulation standards \cite{sargent2010}. Two of the authors are experienced modellers and verification included a code review and cross working on models. Quantitative validation of models (checking models are appropriate detailed and sufficiently accurate) is challenging in the COVID epidemic as the forecast is of unprecedented conditions. We instead worked closely with clinicians, managers and informatics specialists within the local health system to review iterative versions of the model.  We also opted to model a range of likely scenarios including what is widely believed to be the worst case.
+
+
+\subsection{Dialysis model}
+The dialysis model runs through a defined period (e.g. one year) and simulates the progression of patients through phases of COVID infection: negative, positive (with some requiring inpatient care) and recovered or died. The speed of progression of infection through the population may be varied (typically 3-12 months).
+
+As patients change COVID state the model seeks to place them in the appropriate unit and session, opening up COVID-positive sessions in units that allow it. COVID-positive patients do not mix with any other patients. Opening up COVID-positive sessions causes other patients to be displaced from that session, and the model seeks to reallocate them either to the same unit or, if there is no space left, to the closest alternative unit.
+
+%Mike why only 30 reps?  Worth running a few more?
+%The issue is that SimPy is not like Simul8 it doesn't
+%provide any common random number streams by default.
+The dialysis model is run 30 times to simulate 30 alternative years as, due to the randomness of infection, no two years will be exactly alike. Results show typical (median) and extreme years.
+
+\subsubsection{Patient progression model}
+A simplification used in this model is that all patients should receive dialysis three times weekly, with each patient allocated to a starting day for the week of either Monday or Tuesday.
+
+A proportion of patients moves through phases of COVID state and care (figure \ref{fig:patient_pathway}). The proportions of patients and times in each phase is either fixed or sampled from stochastic distributions as given in table \ref{tab:model_parameters}. We assume that COVID patients must be separated from uninfected patients, and that patients who have recovered from a COVID episode do not mix with those currently testing COVID positive. We do not deal specifically with \emph{suspected} COVID patients in the model, anticipating that rapid testing will soon be available to diagnose which group they belong to.
+
+The \emph{baseline} model takes a \emph{worst case} progression of COVID, infecting 80\% of the dialysis population over 3 months.
+
+\subsubsection{Unit search strategy}
+
+When allocating patients to units, the following search strategy is employed.
+
+\begin{itemize}
+\item \emph{COVID negative}: First look for place in current unit attended. If no room there place in the closest unit (judged by estimated travel time) with available space.
+
+\item \emph{COVID-positive}: Place all COVID-positive patients first in Queen Alexandra Hospital, Portsmouth, and if capacity there is fully utilised open up capacity in Basingstoke. If a new COVID session is required, the model will displace all COVID negative patients in that session, and seek to re-allocate them according to the rules for allocating COVID negative patients.
+
+\item \emph{COVID-positive inpatient}: All inpatients are placed in Queen Alexandra Hospital, Portsmouth (though the model allows searching by travel time if another unit were to open to renal COVID-positive inpatients). 
+
+\item \emph{COVID-recovered}: Treat as COVID negative.
+
+\item \emph{Unallocated patients}: If a patient cannot be allocated to any unit, the model attempts to allocate them each day.
+\end{itemize}
+
+Patients, in the model, may end up being cared for at a more distant unit than their starting unit. Once every week, the model seeks to reallocate patients back to their starting unit, or closest available unit if room in their starting unit is not available. This will also compress COVID-positive patients into as few units and sessions as possible.
+
+COVID-positive sessions are converted back to COVID negative sessions when they are no longer needed.
+
+\end{multicols}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{image/patient_pathway.png}
+\caption{Schematic representation of patient pathway}
+\label{fig:patient_pathway}
+\end{figure}
+
+\begin{minipage}{\textwidth}
+\begin{longtable}[]{@{}lll@{}}
+\caption{Baseline model parameters}\\
+\toprule
+\endhead
+Parameter & Distribution & Baseline values\tabularnewline
+\midrule
+Proportion patients infected & Fixed & 0.8\tabularnewline
+Time to infection & Normal & Mean = 60, SD = 15 (3 month spread)\tabularnewline
+Time positive/symptomatic (outpatient) & Uniform & Low = 7, High =
+14\tabularnewline
+Proportion COV requiring inpatient care & Fixed & 0.6\tabularnewline
+Time inpatient COV before admission & Uniform & Low = 3, High =
+7\tabularnewline
+Time inpatient COV & Uniform & Low = 7, High = 14\tabularnewline
+Mortality rate & Fixed & 0.15\tabularnewline
+\bottomrule
+\label{tab:model_parameters}
+\end{longtable}
+\end{minipage}
+
+\begin{multicols}{2}
+
+\subsection{Patient transport model}
+The transport model provides an estimate of the vehicle travel time needed to transport COVID-positive patients to (and from) an outpatient treatment facility. 
+
+\subsubsection{Transport scenarios}
+
+The model can vary the capacity of transport vehicles (e.g. the number of seats per ambulance) and the number of COVID positive patients in the population who need COVID-positive capable transport at any time.
+
+We model the following daily scenarios:
+
+\begin{itemize}
+    \item A population of 20 patients are COVID positive.
+    \item A population of 40 patients are COVID positive.
+    \item A population of 60 patients are COVID positive.
+    \item Ambulances are able to pick up between 1 and 4 COVID positive patients on a single trip.
+\end{itemize}
+
+For example, if COVID spreads through the population in three months, there may be 140 COVID-positive patients. If 40\% are inpatients, and 75\% require transport, there may be 60-70 patients requiring
+COVID-positive transport (30-35 on each day).
+
+\subsubsection{Simulation of pickup locations}
+There is no robust way to estimate which patients will become COVID positive and at what time. The model therefore uses a Monte-Carlo sampling approach to simulate different groups of patients becoming infected. The sampling uses the geographic distribution of patient home postcode sectors. 
+
+\begin{itemize}
+    \item We assume that all patients are equally likely to become infected.
+    \item We weight the sample by the number of patients within each postcode sector.  I.e. areas with more patients are more likely to be sampled. 
+\end{itemize}
+
+The model works by performing multiple runs. On each run a different cohort of patients is selected. This means that hundreds of combinations of COVID-positive patient locations can be explored.  The more common combinations will be sampled more frequently due to the weighting. For each sample a set of transport routes are created. The transport routes group patients together and order them for transport to the hospital. The grouping is based on travel time.
+
+We simplified the problem to consider a symmetric road network. That is travel time outward to a patient is the same as inward travel time. In reality road networks are asymmetric, for example due to one way systems, and roadworks.  
+
+\subsubsection{Transport route construction}
+
+After a set of patient locations is chosen a set of routes are constructed.  The number of routes needed depends on capacity of the ambulance. Each route has a home base for the ambulance.  We have simplified the problem so that the ambulance is based at the QA (in reality it will start from an depot elsewhere, but this is only one leg of multiple journeys). In each scenario, we also simplified the problem so that all ambulances have the same capacity (no. of seats)
+
+When vehicle capacity is equal to one then the cost of all routes is equal to the travel time to and from all patients. This is our baseline scenario and all other scenarios are compared to it.
+
+When vehicles have capacity greater than one, we simplify the problem of patient transport to the deterministic Capacitated Vehicle Routing Problem (CVRP). The CVRP is a well known and studied problem in the vehicle routing literature. As we must solve medium to large CRVP instances thousands of times we do not make use of an industrial solver, such as Gurobi to solve to optimality, due to model runtime.  Here we use a two-step heuristic approach.  We first use Sequential Clarke-Wright Savings \cite{clarke_wright_1964} and then use this as the initial `home base' in a Iterated Local Search \cite{ils2003} meta-heuristic algorithm.
+
+\section{Results}
+\subsection{Dialysis network}
+
+Currently the median travel time from home to dialysis unit (one way, with a single passenger) is 14 minutes. The minimum, lower quartile, upper quartile, and maximum travel times are 1, 9, 22, and 76 minutes.
+
+Currently there is sufficient capacity for 668 dialysis patients in the outpatient sessions which are currently open, with 583 patients currently receiving dialysis (87\% capacity utilisation).
+
+Figures \ref{fig:patients_base_3_month} to \ref{fig:displaced_base_3_month} show the effect of COVID progression if 80\% of patients are infected over three months. If COVID progresses through 80\% of the population in three months then, at the peak, there are up to about 125 COVID-positive patients (115-140 across the 30 model runs). Outpatients positives peak at about 65 (60-70) and inpatient positives peak at about 70 (60-85).
+
+In the planned strategy of using half of one of the largest units (Queen Alexandra) for COVID-positive dialysis outpatients, and then using a second unit (Basingstoke, also providing up to half of its capacity for COVID-positive dialysis outpatient patients) for any excess, the dialysis system copes without any patients being unable to be allocated to a session (or without any need in dropping dialysis frequency). Workload in units that do not take COVID-positive outpatients will fall during the outbreak (though some work will flow back to them if they need to care for COVID-negative patients displaced from the units caring for COVID-positive patients). 
+
+One unit (Queen Alexandra) takes all COVID-positive inpatients in the model. The novel workload of treating COVID-positive patients who would otherwise not need inpatient care will likely stress inpatient care systems.
+
+Outpatients may be displaced from their usual unit of care either because they need to travel to a COVID-positive session in another hospital, or because their unit has had to free up sessions for COVID-positive sessions. These patients typically require 20 minutes extra travel time to get to their temporary place of care (assuming they are travelling alone), with some requiring 50 minutes extra travel in each direction to/from dialysis. 
+
+\subsection{Patient transport}
+
+Figures \ref{fig:transport_inward} and \ref{fig:transport_inward_outward} illustrate the travel times distribution inbound, and inbound plus outbound (doubled inbound times), respectively, by transport capacity size of the COVID positive patient cohort. 
+
+A patient transport policy where a single patients are transported at a time has a median time substantially higher than all multi-occupancy policies. In all COVID caseload scenarios the largest improvement is seen when a additional patient is transported in each trip. Further improvement is seen if vehicle capacity is increased to three or four patients.  
+
+For example, if 40 COVID-positive patients need inbound and outbound transport, then a a median of 80.0 hours (inter-quartile range = 12.5 hours) of ambulance driving time (not including fixed drop-off and clean times) is required per day. If the transport capacity of vehicles is increased to two, three or four patient seating capacity, the median travel time requirements are reduced to 48 hours (a 40\% reduction relative to single occupancy vehicles), 38 hours (52\% reduction) and 33 hours (60\% reduction), respectively.
+
+\end{multicols}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.6\textwidth]{image/patients_base_3_month.png}
+\caption{Progression of patient population through COVID infection, assuming 80\% become infected over three months, with 15\% mortality. The figure also shows the number of patients not allocated to a dialysis session at any time. The bold line shows the median results of 30 trials, and the fainter lines show the minimum and maximum from the 30 trials.}
+\label{fig:patients_base_3_month}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{image/units_base_3_month.png}
+\caption{The number of patients (COVID negative, COVID-positive, COVID-inpatient, and COVID-recovered) allocated to each unit over time. The patient population progresses through infection over three months (with 80\% infected). The bold line shows the median results of 30 trials, and the fainter lines show the minimum and maximum from the 30 trials.}
+\label{fig:units_base_3_month}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{image/displaced_base_3_month.png}
+\caption{The number of patients displaced from their current unit (left panel) and the additional travel time to the unit of care (right panel) for displaced patients. These results do not include those receiving inpatient care. The patient population progresses through infection over three months (with 80\% infected). The bold line shows the median results of 30 trials, and the fainter lines show the minimum and maximum from the 30 trials.}
+\label{fig:displaced_base_3_month}
+\end{figure}
+
+%transport images.
+\begin{figure}
+  \includegraphics[width=\linewidth]{image/prelim_model_inward_only_ils.png}
+  \caption{One-way ambulance transport time distributions (1000 model runs). Results compare population COVID +ive and ambulance seating capacity (e.g. 2 = 2 seats.) Figures do not include ambulance clean-down/turnaround time.}
+  \label{fig:transport_inward}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{image/prelim_model_inward_outward_ILS.png}
+  \caption{Two-way ambulance transport time distributions (1000 model runs). Results compare population COVID +ive and ambulance seating capacity (e.g. 2 = 2 seats.) Figures do not include ambulance clean-down/turnaround time.}
+  \label{fig:transport_inward_outward}
+\end{figure}
+
+\begin{multicols}{2}
+
+\section{Discussion}
+
+The results indicate that, if current outpatient capacity is maintained, the dialysis units should be able to cope with the worst-case scenario of rapid (three month) spread of COVID, but that workloads will shift to the central hospital. Coping with a rapid spread of COVID will require rapid reallocation of patients to different sessions and units, an effect likely to also impact on ambulance transfer services  who will see journey times increase, and have reduced efficiency of having to split COVID positive and COVID-negative patients. 
+
+It appears likely that there will be significant inpatient pressures, with current capacity likely to be breached. It may be necessary to consider moving dialysis equipment during the peak COVID-positive workload when demand on units taking COVID-negative patients only will be reduced.
+
+The current practice of transporting COVID-positive patients individually appears unsustainable. The results demonstrate that single seat ambulances face a challenge in transporting COVID-positive patients to and from the QA on a given day. In each scenario there is significant savings from using the additional ambulance capacity for more COVID-positive patients. In each scenario the biggest relative improvement is seen when capacity is increased to 2 seats (e.g. reducing ambulance drive time from 75 to about 45 hours per day for 40 patient two-way journeys). Increasing to 2-4seats has further benefit, but returns are diminishing.
+
+\subsection{Limitations of the study}
+
+A general limitation to these types of models is the level of uncertainty about the spread of COVID. We have therefore sought to model worst-case scenarios to enable contingency planning. 
+
+\subsubsection{Dialysis model}
+
+\begin{itemize}
+    \item The model assumes that patients can be re-allocated to units/sessions immediately. In practice changes to session allocation (e.g. shifting from COVID-negative to COVID-positive are likely to be made a little in advance. 
+    
+    \item The results reported here assume that current capacity is maintained throughout the COVID outbreak. We have not modelled the effect of reductions in capacity that may be caused by staff shortages.
+    
+    \item We have not modelled timing of sessions, but the model progressively allocates COVID-positive sessions as needed, and we would assume that these sessions would come later in the day, enabling cleaning at the end of the day, ready for any COVID-negative session the next morning.
+    
+    \item We have not included home dialysis patients, which may affect inpatient demand. A likely worst-case scenario (with home dialysis patients following the transmission spread, and need for inpatient care, of the dialysis units, is that inpatient demand may be increased 15\%.
+    
+\end{itemize}
+
+
+\subsubsection{Transport model}
+
+\begin{itemize}
+    \item The findings provide estimates of total time patient transport ambulances will need to travel. They are not intended to provide recommendations of the minimum number of ambulances needed to maximise the number of appointments and/or shifts that run on time. A more accurate, but highly complex and time consuming, formulation of this problem is called the (static) dial-a-ride problem \cite{dialaride2007}. Dial-a-ride formulations explicitly take account of \textit{time windows} for patient pickup and drop-off and \textit{maximum patient ride-time}. Further dynamic complexity would be required in order to incorporate two-way patient journeys. 
+    
+    \item The route optimisation uses two well known heuristics. A heuristic algorithm offers a fast method to obtain a good solution, but it does not guarantee an optimal solution i.e the shortest possible travel time achieved by optimal assignment of patients to routes. It is possible to solve the CRVP with 100 nodes to `optimality' using industrial solvers such Gurobi. We chose a heuristic approach primarily for solution speed as we made no assumptions about the size of problem others networks could face internationally. We note that a possible improvement to the approach could be to switch to the Parallel version of Clarke-Wright savings.
+    
+    \item Figures for inward and outwards journeys do no explore the potential efficiencies of dropping patients back at their homes (after dialysis) and picking new patients up at the same time.
+\end{itemize}
+
+\section*{Footnotes}
+\subsection*{Contributions}
+All authors conceived the aims of the study. MA and TM conducted the analyses and wrote the paper. AB, SD and JW provided clinical and health system scrutiny of the work. All authors were involved in the development and review of the manuscript.
+
+\subsection*{Funding}
+This article presents independent research funded by the National Institute for Health Research (NIHR) Applied Research Collaboration South West Peninsula. 
+
+\subsection*{Disclaimer}
+The views expressed in this publication are those of the author(s) and not necessarily those of the National Health Service, the NIHR, or the Department of Health and Social Care.
+
+\subsection*{Competing Interests}
+None declared.
+
+\subsection*{Patient consent}
+Not required
+
+\subsection*{Ethics}
+The research team had no access to individual patient records.  All analyses were conducted with aggregate counts of patients per UK postcode sector. 
+
+\subsection*{Code and Data Availability}
+The code and data used in this study is available at \url{https://git.exeter.ac.uk/tmwm201/dialysis-service-delivery-covid19}.
+
+
+
+
+\end{multicols}
+
+
+%\section{References}
+%\bibliographystyle{ieeetr}
+%\bibliography{refs}
+\printbibliography

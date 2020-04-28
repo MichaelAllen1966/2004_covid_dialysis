@@ -1,0 +1,58 @@
+\documentclass[titlepage]{article}
+
+\usepackage{url}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{hyperref}
+%\usepackage[super]{natbib}
+\usepackage[backend=biber,style=numeric, url=true, sorting=none, eprint=false, doi=true, minbibnames=3, maxbibnames=3, giveninits=true, hyperref=true]{biblatex}
+\addbibresource{refs.bib}
+
+\usepackage[a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{longtable,booktabs}
+\usepackage{caption}
+\usepackage{blindtext}
+\usepackage{graphicx}
+\usepackage{authblk}
+\usepackage{amsmath}
+\usepackage{lineno}
+\usepackage[toc,page]{appendix}
+\usepackage[utf8]{inputenc}
+
+%for algorithms
+\usepackage[ruled,vlined]{algorithm2e}
+
+\usepackage{multicol}
+\setlength{\columnsep}{5mm} %column separation
+
+%working title...
+\title{Organising outpatient dialysis services during the COVID-19 pandemic.  A simulation and mathematical modelling study.}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\author[1]{Michael Allen}
+\author[2]{Amir Bhanji}
+\author[2]{Jonas Willemsen}
+\author[2]{Steven Dudfield}
+\author[1]{Stuart Logan}
+
+% I will ask IDSAI about my affiliation?
+%at the moment I've just been told to put UoE
+\author[3]{Thomas Monks \thanks{Corresponding authors: m.allen@exeter.ac.uk and t.m.w.monks@exeter.ac.uk}}
+
+\affil[1]{\footnotesize University of Exeter Medical School \& NIHR South West Peninsula Applied Research Collaboration (ARC).}
+\affil[2]{\footnotesize Portsmouth Hospitals, NHS Trust}
+\affil[3]{\footnotesize University of Exeter Medical School}%Institute of Data Science and Artificial Intelligence}
+
+%use include only to limit what is see. But need to run everything first before limiting to ensure that cross-refs work!
+%\includeonly{sections/abstract,sections/main_text}
+%\includeonly{sections/appendix}
+\begin{document}
+\maketitle
+
+\include{sections/abstract}
+\include{sections/main_text}
+%\newpage
+\include{sections/appendix}
+
+\end{document}
+
